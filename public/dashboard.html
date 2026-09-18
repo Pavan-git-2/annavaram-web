@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Dashboard - Annavaram Web</title>
+
+    <link rel="stylesheet" href="style.css">
+
+</head>
+
+
+<body>
+
+
+    <!-- =========================
+         DASHBOARD HEADER
+    ========================== -->
+
+    <header>
+
+        <div class="logo">
+            Annavaram Web
+        </div>
+
+        <nav>
+
+            <a href="/" target="_blank">
+                View Website
+            </a>
+
+            <a href="#" id="logoutBtn">
+                Logout
+            </a>
+
+        </nav>
+
+    </header>
+
+
+
+    <!-- =========================
+         DASHBOARD
+    ========================== -->
+
+    <main class="dashboard">
+
+
+        <!-- DASHBOARD TITLE -->
+
+        <div class="dashboard-heading">
+
+            <div>
+
+                <p class="section-title">
+                    ADMIN PANEL
+                </p>
+
+                <h1>
+                    Dashboard
+                </h1>
+
+                <p>
+                    Manage your website content.
+                </p>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =========================
+             STATISTICS
+        ========================== -->
+
+        <div class="stats-grid">
+
+
+            <div class="stat-card">
+
+                <span>
+                    Images
+                </span>
+
+                <strong id="imageCount">
+                    0
+                </strong>
+
+            </div>
+
+
+
+            <div class="stat-card">
+
+                <span>
+                    Videos
+                </span>
+
+                <strong id="videoCount">
+                    0
+                </strong>
+
+            </div>
+
+
+
+            <div class="stat-card">
+
+                <span>
+                    Total Content
+                </span>
+
+                <strong id="totalCount">
+                    0
+                </strong>
+
+            </div>
+
+
+        </div>
+
+
+
+        <!-- =========================
+             ADD NEW CONTENT
+        ========================== -->
+
+        <section class="admin-section">
+
+
+            <div class="admin-section-header">
+
+                <div>
+
+                    <p class="section-title">
+                        CONTENT MANAGEMENT
+                    </p>
+
+                    <h2>
+                        Add New Content
+                    </h2>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="content-form">
+
+
+                <!-- CONTENT TYPE -->
+
+                <label for="contentType">
+                    Content Type
+                </label>
+
+                <select id="contentType">
+
+                    <option value="image">
+                        Image
+                    </option>
+
+                    <option value="video">
+                        Video
+                    </option>
+
+                </select>
+
+
+
+                <!-- CATEGORY -->
+
+                <label for="contentCategory">
+                    Category
+                </label>
+
+                <select id="contentCategory">
+
+                    <option value="latest">
+                        Latest Works
+                    </option>
+
+                    <option value="lyrical">
+                        Lyrical Video
+                    </option>
+
+                    <option value="reels">
+                        Reels
+                    </option>
+
+                    <option value="wedding-promos">
+                        Wedding Promo
+                    </option>
+
+                    <option value="images">
+                        Images
+                    </option>
+
+                </select>
+
+
+
+                <!-- TITLE -->
+
+                <label for="contentTitle">
+                    Title
+                </label>
+
+                <input
+                    type="text"
+                    id="contentTitle"
+                    placeholder="Enter title"
+                >
+
+
+
+                <!-- FILE -->
+
+                <label for="contentFile">
+                    Select File
+                </label>
+
+                <input
+                    type="file"
+                    id="contentFile"
+                    accept="image/*,video/*"
+                >
+
+
+
+                <!-- UPLOAD -->
+
+                <button
+                    id="uploadBtn"
+                    class="login-btn"
+                    type="button"
+                >
+                    Upload Content
+                </button>
+
+
+
+                <!-- MESSAGE -->
+
+                <p id="uploadMessage"></p>
+
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =========================
+             MANAGE CONTENT
+        ========================== -->
+
+        <section class="admin-section">
+
+
+            <p class="section-title">
+                MANAGE CONTENT
+            </p>
+
+
+            <h2>
+                Your Content
+            </h2>
+
+
+
+            <!-- =========================
+                 TWO COLUMN CONTENT
+            ========================== -->
+
+            <div class="content-columns">
+
+
+                <!-- =========================
+                     VIDEOS COLUMN
+                ========================== -->
+
+                <div class="content-column">
+
+
+                    <p class="section-title">
+                        VIDEOS
+                    </p>
+
+
+                    <h3 class="content-column-title">
+                        Uploaded Videos
+                    </h3>
+
+
+                    <div
+                        id="videoContentList"
+                        class="content-list"
+                    >
+
+                        <div class="empty-content">
+                            No videos uploaded yet.
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+
+
+                <!-- =========================
+                     IMAGES COLUMN
+                ========================== -->
+
+                <div class="content-column">
+
+
+                    <p class="section-title">
+                        IMAGES
+                    </p>
+
+
+                    <h3 class="content-column-title">
+                        Uploaded Images
+                    </h3>
+
+
+                    <div
+                        id="imageContentList"
+                        class="content-list"
+                    >
+
+                        <div class="empty-content">
+                            No images uploaded yet.
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+
+            </div>
+
+
+        </section>
+
+
+    </main>
+
+
+
+    <!-- =========================
+         FOOTER
+    ========================== -->
+
+    <footer>
+
+        <p>
+            © 2026 Annavaram Web. All Rights Reserved.
+        </p>
+
+    </footer>
+
+
+
+    <!-- =========================
+         DASHBOARD SCRIPT
+    ========================== -->
+
+    <script src="dashboard.js"></script>
+
+
+
+    <!-- =========================
+         LOGOUT
+    ========================== -->
+
+    <script>
+
+        const logoutBtn =
+            document.getElementById("logoutBtn");
+
+
+        if (logoutBtn) {
+
+            logoutBtn.addEventListener(
+                "click",
+                function (event) {
+
+                    event.preventDefault();
+
+                    window.location.href =
+                        "/login.html";
+
+                }
+            );
+
+        }
+
+    </script>
+
+
+</body>
+
+</html>

@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Annavaram Web</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- =========================
+         HEADER
+    ========================== -->
+
+    <header>
+
+        <div class="logo">
+            Annavaram Web
+        </div>
+
+        <nav>
+
+            <a href="#home">Home</a>
+
+            <a href="#latest-works">
+                Latest Works
+            </a>
+
+            <a href="#lyrical">
+                Lyrical Videos
+            </a>
+
+            <a href="#reels">
+                Reels
+            </a>
+
+            <a href="#wedding">
+                Wedding Promos
+            </a>
+
+            <a href="#images">
+                Images
+            </a>
+
+            <a href="#contact">
+                Contact
+            </a>
+
+        </nav>
+
+    </header>
+
+
+    <!-- =========================
+         HOME
+    ========================== -->
+
+    <section class="hero" id="home">
+
+        <div class="hero-content">
+
+            <p class="small-title">
+                WELCOME TO
+            </p>
+
+            <h1>
+                Annavaram Web
+            </h1>
+
+            <p>
+                Explore our latest images, videos,
+                creative works and visual content.
+            </p>
+
+            <a href="#latest-works" class="btn">
+                View Our Work
+            </a>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         LATEST WORKS
+    ========================== -->
+
+    <section class="section" id="latest-works">
+
+        <p class="section-title">
+            OUR WORK
+        </p>
+
+        <h2>
+            Latest Works
+        </h2>
+
+        <div
+            class="video-grid"
+            id="latestWorksGrid">
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         LYRICAL VIDEOS
+    ========================== -->
+
+    <section class="section" id="lyrical">
+
+        <p class="section-title">
+            LYRICAL
+        </p>
+
+        <h2>
+            Lyrical Videos
+        </h2>
+
+        <div
+            class="video-grid"
+            id="lyricalGrid">
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         REELS
+    ========================== -->
+
+    <section class="section" id="reels">
+
+        <p class="section-title">
+            REELS
+        </p>
+
+        <h2>
+            Reels
+        </h2>
+
+        <div
+            class="video-grid"
+            id="reelsGrid">
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         WEDDING PROMOS
+    ========================== -->
+
+    <section class="section" id="wedding">
+
+        <p class="section-title">
+            WEDDING
+        </p>
+
+        <h2>
+            Wedding Promos
+        </h2>
+
+        <div
+            class="video-grid"
+            id="weddingGrid">
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         IMAGES - LAST
+    ========================== -->
+
+    <section class="section" id="images">
+
+        <p class="section-title">
+            GALLERY
+        </p>
+
+        <h2>
+            Latest Images
+        </h2>
+
+        <div
+            class="image-grid"
+            id="publicImageGrid">
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         CONTACT
+    ========================== -->
+
+    <section class="contact" id="contact">
+
+        <p class="section-title">
+            GET IN TOUCH
+        </p>
+
+        <h2>
+            Contact Us
+        </h2>
+
+        <p>
+            For more information and projects,
+            contact us.
+        </p>
+
+    </section>
+
+
+    <!-- =========================
+         FOOTER
+    ========================== -->
+
+    <footer>
+
+        <p>
+            © 2026 Annavaram Web. All Rights Reserved.
+        </p>
+
+    </footer>
+
+
+    <!-- =========================
+         PUBLIC CONTENT SCRIPT
+    ========================== -->
+
+    <script>
+
+        async function loadPublicContent() {
+
+            try {
+
+                const response =
+                    await fetch("/api/content");
+
+                const result =
+                    await response.json();
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        result.message ||
+                        "Failed to load content"
+                    );
+
+                }
+
+
+                const content =
+                    result.data || [];
+
+
+                // =========================
+                // GET GRIDS
+                // =========================
+
+                const latestWorksGrid =
+                    document.getElementById(
+                        "latestWorksGrid"
+                    );
+
+                const lyricalGrid =
+                    document.getElementById(
+                        "lyricalGrid"
+                    );
+
+                const reelsGrid =
+                    document.getElementById(
+                        "reelsGrid"
+                    );
+
+                const weddingGrid =
+                    document.getElementById(
+                        "weddingGrid"
+                    );
+
+                const imageGrid =
+                    document.getElementById(
+                        "publicImageGrid"
+                    );
+
+
+                // =========================
+                // CLEAR GRIDS
+                // =========================
+
+                latestWorksGrid.innerHTML = "";
+
+                lyricalGrid.innerHTML = "";
+
+                reelsGrid.innerHTML = "";
+
+                weddingGrid.innerHTML = "";
+
+                imageGrid.innerHTML = "";
+
+
+                // =========================
+                // CREATE CARD
+                // =========================
+
+                function createCard(item) {
+
+                    const card =
+                        document.createElement("div");
+
+
+                    // =========================
+                    // IMAGE CARD
+                    // =========================
+
+                    if (item.type === "image") {
+
+                        card.className =
+                            "image-card";
+
+                        card.innerHTML = `
+
+                            <img
+                                src="${item.url}"
+                                alt="${item.title}"
+                                loading="lazy"
+                            >
+
+                            <h3>
+                                ${item.title}
+                            </h3>
+
+                        `;
+
+                    }
+
+
+                    // =========================
+                    // VIDEO CARD
+                    // =========================
+
+                    else if (item.type === "video") {
+
+                        card.className =
+                            "video-card";
+
+                        card.innerHTML = `
+
+                            <video
+                                controls
+                                preload="metadata"
+                            >
+
+                                <source
+                                    src="${item.url}"
+                                >
+
+                                Your browser does not
+                                support video playback.
+
+                            </video>
+
+                            <h3>
+                                ${item.title}
+                            </h3>
+
+                        `;
+
+                    }
+
+
+                    return card;
+
+                }
+
+
+                // =========================
+                // LATEST WORKS
+                // =========================
+                //
+                // Latest uploaded content
+                // first 6 items
+                //
+
+                const latestWorks =
+                    content.slice(0, 6);
+
+
+                if (latestWorks.length === 0) {
+
+                    latestWorksGrid.innerHTML = `
+
+                        <p>
+                            No latest works available.
+                        </p>
+
+                    `;
+
+                } else {
+
+                    latestWorks.forEach(item => {
+
+                        latestWorksGrid.appendChild(
+                            createCard(item)
+                        );
+
+                    });
+
+                }
+
+
+                // =========================
+                // LYRICAL VIDEOS
+                // =========================
+
+                const lyricalVideos =
+                    content.filter(item => {
+
+                        return (
+                            item.type === "video" &&
+                            String(item.category || "")
+                                .toLowerCase()
+                                .trim() === "lyrical"
+                        );
+
+                    });
+
+
+                if (lyricalVideos.length === 0) {
+
+                    lyricalGrid.innerHTML = `
+
+                        <p>
+                            No lyrical videos available.
+                        </p>
+
+                    `;
+
+                } else {
+
+                    lyricalVideos.forEach(item => {
+
+                        lyricalGrid.appendChild(
+                            createCard(item)
+                        );
+
+                    });
+
+                }
+
+
+                // =========================
+                // REELS
+                // ==========================
+
+                const reelVideos =
+                    content.filter(item => {
+
+                        return (
+                            item.type === "video" &&
+                            String(item.category || "")
+                                .toLowerCase()
+                                .trim() === "reels"
+                        );
+
+                    });
+
+
+                if (reelVideos.length === 0) {
+
+                    reelsGrid.innerHTML = `
+
+                        <p>
+                            No reels available.
+                        </p>
+
+                    `;
+
+                } else {
+
+                    reelVideos.forEach(item => {
+
+                        reelsGrid.appendChild(
+                            createCard(item)
+                        );
+
+                    });
+
+                }
+
+
+                // =========================
+                // WEDDING PROMOS
+                // ==========================
+
+                const weddingPromos =
+                    content.filter(item => {
+
+                        const category =
+                            String(item.category || "")
+                                .toLowerCase()
+                                .trim();
+
+                        return (
+                            item.type === "video" &&
+                            (
+                                category === "wedding-promos" ||
+                                category === "wedding promos" ||
+                                category === "wedding-promo" ||
+                                category === "wedding"
+                            )
+                        );
+
+                    });
+
+
+                if (weddingPromos.length === 0) {
+
+                    weddingGrid.innerHTML = `
+
+                        <p>
+                            No wedding promos available.
+                        </p>
+
+                    `;
+
+                } else {
+
+                    weddingPromos.forEach(item => {
+
+                        weddingGrid.appendChild(
+                            createCard(item)
+                        );
+
+                    });
+
+                }
+
+
+                // =========================
+                // IMAGES
+                // ==========================
+
+                const images =
+                    content.filter(item => {
+
+                        return item.type === "image";
+
+                    });
+
+
+                if (images.length === 0) {
+
+                    imageGrid.innerHTML = `
+
+                        <p>
+                            No images available.
+                        </p>
+
+                    `;
+
+                } else {
+
+                    images.forEach(item => {
+
+                        imageGrid.appendChild(
+                            createCard(item)
+                        );
+
+                    });
+
+                }
+
+            }
+
+
+            catch (error) {
+
+                console.error(
+                    "Public content error:",
+                    error
+                );
+
+            }
+
+        }
+
+
+        // =========================
+        // LOAD CONTENT
+        // ==========================
+
+        loadPublicContent();
+
+    </script>
+
+
+</body>
+
+</html>
