@@ -1,306 +1,920 @@
 require("dotenv").config();
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-
 const express = require("express");
 const path = require("path");
 const multer = require("multer");
-const fs = require("fs");
 const { Pool } = require("pg");
-
-const pool = new Pool({
-    user: "postgres",
-    host: "localhost",
-    database: "annavaram_web",
-    password: process.env.DB_PASSWORD,
-    port: 5432
-});
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
-const PORT = 3000;
+
+const PORT = process.env.PORT || 3000;
+
+// =====================================================
+// ENVIRONMENT VARIABLES
+// =====================================================
+
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_SERVICE_ROLE_KEY =
+    process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+const BUCKET_NAME = "media";
+
+// =====================================================
+// CHECK REQUIRED ENV VARIABLES
+// =====================================================
+
+if (!SUPABASE_URL) {
+    console.error("ERROR: SUPABASE_URL is missing");
+}
+
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+    console.error(
+        "ERROR: SUPABASE_SERVICE_ROLE_KEY is missing"
+    );
+}
+
+// =====================================================
+// SUPABASE CLIENT
+// =====================================================
+
+const supabase = createClient(
+    SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY
+);
+
+// =====================================================
+// POSTGRES DATABASE
+// =====================================================
+
+const pool = new Pool({
+    user: process.env.DB_USER || "postgres",
+
+    host:
+        process.env.DB_HOST ||
+        "localhost",
+
+    database:
+        process.env.DB_NAME ||
+        "annavaram_web",
+
+    password:
+        process.env.DB_PASSWORD,
+
+    port:
+        process.env.DB_PORT ||
+        5432,
+
+    ssl:
+        process.env.NODE_ENV === "production"
+            ? {
+                  rejectUnauthorized: false
+              }
+            : false
+});
+
+// =====================================================
+// EXPRESS MIDDLEWARE
+// =====================================================
 
 app.use(express.json());
 
-// =========================
-// ADMIN LOGIN
-// =========================
-
-app.post("/api/login", (req, res) => {
-
-    const { email, password } = req.body;
-
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        return res.json({
-            success: true,
-            message: "Login successful"
-        });
-    }
-
-    res.status(401).json({
-        success: false,
-        message: "Invalid email or password"
-    });
-});
-
-// =========================
-// UPLOAD FOLDERS
-// =========================
-
-const imageFolder = path.join(
-    __dirname,
-    "public",
-    "uploads",
-    "images"
+app.use(
+    express.urlencoded({
+        extended: true
+    })
 );
 
-const videoFolder = path.join(
-    __dirname,
-    "public",
-    "uploads",
-    "videos"
+// =====================================================
+// STATIC PUBLIC FILES
+// =====================================================
+
+app.use(
+    express.static(
+        path.join(
+            __dirname,
+            "public"
+        )
+    )
 );
 
-fs.mkdirSync(imageFolder, { recursive: true });
-fs.mkdirSync(videoFolder, { recursive: true });
-
-// =========================
-// STATIC FILES
-// =========================
-
-app.use(express.static(path.join(__dirname, "public")));
-
-// =========================
-// MULTER STORAGE
-// =========================
-
-const storage = multer.diskStorage({
-
-    destination: (req, file, cb) => {
-
-        if (file.mimetype.startsWith("image/")) {
-            cb(null, imageFolder);
-
-        } else if (file.mimetype.startsWith("video/")) {
-            cb(null, videoFolder);
-
-        } else {
-            cb(new Error("Only image and video files are allowed"));
-        }
-    },
-
-    filename: (req, file, cb) => {
-
-        const uniqueName =
-            Date.now() + "-" + file.originalname;
-
-        cb(null, uniqueName);
-    }
-});
+// =====================================================
+// MULTER
+// STORE FILE IN MEMORY
+// =====================================================
 
 const upload = multer({
-    storage: storage,
+
+    storage:
+        multer.memoryStorage(),
 
     limits: {
-        fileSize: 1024 * 1024 * 1024
-    }
+
+        fileSize:
+            1024 * 1024 * 1024
+    },
+
+    fileFilter:
+        (req, file, cb) => {
+
+            if (
+                file.mimetype.startsWith(
+                    "image/"
+                ) ||
+                file.mimetype.startsWith(
+                    "video/"
+                )
+            ) {
+
+                cb(null, true);
+
+            } else {
+
+                cb(
+                    new Error(
+                        "Only image and video files are allowed"
+                    )
+                );
+
+            }
+
+        }
+
 });
 
-// =========================
-// HOME
-// =========================
+// =====================================================
+// ADMIN LOGIN
+// =====================================================
 
-app.get("/", (req, res) => {
+app.post(
+    "/api/login",
+    (req, res) => {
 
-    res.sendFile(
-        path.join(__dirname, "public", "index.html")
-    );
-});
+        try {
 
-// Get all uploaded content
-app.get("/api/content", async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT * FROM content
-             ORDER BY id DESC`
-        );
+            const {
+                email,
+                password
+            } = req.body;
 
-        res.json({
-            success: true,
-            data: result.rows
-        });
+            if (
+                !email ||
+                !password
+            ) {
 
-    } catch (error) {
-        console.error("Get content error:", error);
+                return res.status(400).json({
 
-        res.status(500).json({
-            success: false,
-            message: "Failed to load content"
-        });
-    }
-});
+                    success: false,
 
-// DELETE CONTENT
-// DELETE CONTENT
-app.delete("/api/content/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
+                    message:
+                        "Email and password are required"
 
-        // Get file information before deleting database record
-        const result = await pool.query(
-            "SELECT * FROM content WHERE id = $1",
-            [id]
-        );
+                });
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({
+            }
+
+            if (
+                email === ADMIN_EMAIL &&
+                password === ADMIN_PASSWORD
+            ) {
+
+                return res.json({
+
+                    success: true,
+
+                    message:
+                        "Login successful"
+
+                });
+
+            }
+
+            return res.status(401).json({
+
                 success: false,
-                message: "Content not found"
+
+                message:
+                    "Invalid email or password"
+
             });
+
+        } catch (error) {
+
+            console.error(
+                "Login error:",
+                error
+            );
+
+            return res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Login failed"
+
+            });
+
         }
 
-        const content = result.rows[0];
-
-        // Delete database record
-        await pool.query(
-            "DELETE FROM content WHERE id = $1",
-            [id]
-        );
-
-        // Delete physical file
-        const folder =
-            content.type === "image"
-                ? imageFolder
-                : videoFolder;
-
-        const filePath = path.join(
-            folder,
-            content.filename
-        );
-
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
-
-        res.json({
-            success: true,
-            message: "Content deleted successfully"
-        });
-
-    } catch (error) {
-        console.error("Delete content error:", error);
-
-        res.status(500).json({
-            success: false,
-            message: "Failed to delete content"
-        });
     }
-});
+);
 
+// =====================================================
+// HOME PAGE
+// =====================================================
 
+app.get(
+    "/",
+    (req, res) => {
+
+        res.sendFile(
+            path.join(
+                __dirname,
+                "public",
+                "index.html"
+            )
+        );
+
+    }
+);
+
+// =====================================================
+// GET ALL CONTENT
+// =====================================================
+
+app.get(
+    "/api/content",
+    async (req, res) => {
+
+        try {
+
+            const result =
+                await pool.query(
+                    `
+                    SELECT
+                        id,
+                        type,
+                        title,
+                        filename,
+                        url,
+                        category
+                    FROM content
+                    ORDER BY id DESC
+                    `
+                );
+
+            return res.json({
+
+                success: true,
+
+                data:
+                    result.rows
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Get content error:",
+                error
+            );
+
+            return res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Failed to load content"
+
+            });
+
+        }
+
+    }
+);
+
+// =====================================================
+// UPLOAD IMAGE / VIDEO
+// =====================================================
+
+app.post(
+    "/api/upload",
+    upload.single("file"),
+    async (req, res) => {
+
+        try {
+
+            // -------------------------------------------------
+            // CHECK FILE
+            // -------------------------------------------------
+
+            if (!req.file) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Please select a file"
+
+                });
+
+            }
+
+            // -------------------------------------------------
+            // DETERMINE TYPE
+            // -------------------------------------------------
+
+            const type =
+                req.file.mimetype.startsWith(
+                    "image/"
+                )
+                    ? "image"
+                    : "video";
+
+            // -------------------------------------------------
+            // TITLE
+            // -------------------------------------------------
+
+            const title =
+                req.body.title ||
+                req.file.originalname;
+
+            // -------------------------------------------------
+            // CATEGORY
+            // -------------------------------------------------
+
+            const category =
+                req.body.category ||
+                "latest";
+
+            // -------------------------------------------------
+            // FILE EXTENSION
+            // -------------------------------------------------
+
+            const extension =
+                path.extname(
+                    req.file.originalname
+                );
+
+            // -------------------------------------------------
+            // SAFE FILE NAME
+            // -------------------------------------------------
+
+            const originalName =
+                path.basename(
+                    req.file.originalname,
+                    extension
+                );
+
+            const safeName =
+                originalName
+                    .replace(
+                        /[^a-zA-Z0-9-_]/g,
+                        "-"
+                    )
+                    .replace(
+                        /-+/g,
+                        "-"
+                    );
+
+            // -------------------------------------------------
+            // UNIQUE FILE NAME
+            // -------------------------------------------------
+
+            const fileName =
+                `${Date.now()}-${safeName}${extension}`;
+
+            // -------------------------------------------------
+            // STORAGE FOLDER
+            // -------------------------------------------------
+
+            const folder =
+                type === "image"
+                    ? "images"
+                    : "videos";
+
+            const storagePath =
+                `${folder}/${fileName}`;
+
+            console.log(
+                "Uploading:",
+                storagePath
+            );
+
+            // -------------------------------------------------
+            // SUPABASE STORAGE UPLOAD
+            // -------------------------------------------------
+
+            const {
+                error:
+                    uploadError
+            } =
+                await supabase.storage
+                    .from(
+                        BUCKET_NAME
+                    )
+                    .upload(
+                        storagePath,
+                        req.file.buffer,
+                        {
+                            contentType:
+                                req.file.mimetype,
+
+                            cacheControl:
+                                "3600",
+
+                            upsert:
+                                false
+                        }
+                    );
+
+            if (uploadError) {
+
+                console.error(
+                    "Supabase upload error:",
+                    uploadError
+                );
+
+                return res.status(500).json({
+
+                    success: false,
+
+                    message:
+                        "Failed to upload file to Supabase Storage",
+
+                    error:
+                        uploadError.message
+
+                });
+
+            }
+
+            // -------------------------------------------------
+            // GET PUBLIC URL
+            // -------------------------------------------------
+
+            const {
+                data:
+                    publicUrlData
+            } =
+                supabase.storage
+                    .from(
+                        BUCKET_NAME
+                    )
+                    .getPublicUrl(
+                        storagePath
+                    );
+
+            const publicUrl =
+                publicUrlData.publicUrl;
+
+            console.log(
+                "Public URL:",
+                publicUrl
+            );
+
+            // -------------------------------------------------
+            // SAVE CONTENT IN DATABASE
+            // -------------------------------------------------
+
+            const result =
+                await pool.query(
+                    `
+                    INSERT INTO content
+                    (
+                        type,
+                        title,
+                        filename,
+                        url,
+                        category
+                    )
+                    VALUES
+                    (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5
+                    )
+                    RETURNING *
+                    `,
+                    [
+                        type,
+                        title,
+                        storagePath,
+                        publicUrl,
+                        category
+                    ]
+                );
+
+            const content =
+                result.rows[0];
+
+            // -------------------------------------------------
+            // RESPONSE
+            // -------------------------------------------------
+
+            return res.json({
+
+                success: true,
+
+                message:
+                    "File uploaded successfully",
+
+                id:
+                    content.id,
+
+                type:
+                    content.type,
+
+                title:
+                    content.title,
+
+                filename:
+                    content.filename,
+
+                url:
+                    content.url,
+
+                category:
+                    content.category
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Upload error:",
+                error
+            );
+
+            return res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Upload failed",
+
+                error:
+                    error.message
+
+            });
+
+        }
+
+    }
+);
+
+// =====================================================
 // EDIT CONTENT TITLE
-app.put("/api/content/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-        const { title } = req.body;
+// =====================================================
 
-        const result = await pool.query(
-            `UPDATE content
-             SET title = $1
-             WHERE id = $2
-             RETURNING *`,
-            [title, id]
-        );
+app.put(
+    "/api/content/:id",
+    async (req, res) => {
 
-        res.json({
-            success: true,
-            message: "Content updated successfully",
-            data: result.rows[0]
-        });
+        try {
 
-    } catch (error) {
-        console.error(error);
+            const {
+                id
+            } = req.params;
 
-        res.status(500).json({
-            success: false,
-            message: "Failed to update content"
-        });
-    }
-});
+            const {
+                title
+            } = req.body;
 
-// UPLOAD API
-app.post("/api/upload", upload.single("file"), async (req, res) => {
+            if (
+                !title ||
+                !title.trim()
+            ) {
 
-    try {
+                return res.status(400).json({
 
-        if (!req.file) {
+                    success: false,
 
-            return res.status(400).json({
-                success: false,
-                message: "Please select a file"
+                    message:
+                        "Title is required"
+
+                });
+
+            }
+
+            const result =
+                await pool.query(
+                    `
+                    UPDATE content
+                    SET title = $1
+                    WHERE id = $2
+                    RETURNING *
+                    `,
+                    [
+                        title.trim(),
+                        id
+                    ]
+                );
+
+            if (
+                result.rows.length === 0
+            ) {
+
+                return res.status(404).json({
+
+                    success: false,
+
+                    message:
+                        "Content not found"
+
+                });
+
+            }
+
+            return res.json({
+
+                success: true,
+
+                message:
+                    "Content updated successfully",
+
+                data:
+                    result.rows[0]
+
             });
+
+        } catch (error) {
+
+            console.error(
+                "Edit error:",
+                error
+            );
+
+            return res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Failed to update content"
+
+            });
+
         }
 
-        const type = req.file.mimetype.startsWith("image/")
-            ? "image"
-            : "video";
+    }
+);
 
-        const title =
-            req.body.title || req.file.originalname;
+// =====================================================
+// DELETE CONTENT
+// =====================================================
 
-        const category =
-            req.body.category || "latest";
+app.delete(
+    "/api/content/:id",
+    async (req, res) => {
 
-        const url =
-            `/uploads/${type}s/${req.file.filename}`;
+        try {
 
-        const result = await pool.query(
-            `INSERT INTO content
-             (type, title, filename, url, category)
-             VALUES ($1, $2, $3, $4, $5)
-             RETURNING *`,
-            [
-                type,
-                title,
-                req.file.filename,
-                url,
-                category
-            ]
+            const {
+                id
+            } = req.params;
+
+            // -------------------------------------------------
+            // GET CONTENT
+            // -------------------------------------------------
+
+            const result =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM content
+                    WHERE id = $1
+                    `,
+                    [id]
+                );
+
+            if (
+                result.rows.length === 0
+            ) {
+
+                return res.status(404).json({
+
+                    success: false,
+
+                    message:
+                        "Content not found"
+
+                });
+
+            }
+
+            const content =
+                result.rows[0];
+
+            // -------------------------------------------------
+            // DELETE FROM SUPABASE STORAGE
+            // -------------------------------------------------
+
+            if (
+                content.filename
+            ) {
+
+                let storagePath =
+                    content.filename;
+
+                /*
+                 * New records contain:
+                 * images/file.jpg
+                 * videos/file.mp4
+                 *
+                 * Old records may contain:
+                 * /uploads/images/file.jpg
+                 */
+
+                if (
+                    storagePath.startsWith(
+                        "/uploads/"
+                    )
+                ) {
+
+                    storagePath =
+                        storagePath.replace(
+                            "/uploads/",
+                            ""
+                        );
+
+                }
+
+                if (
+                    !storagePath.startsWith(
+                        "images/"
+                    ) &&
+                    !storagePath.startsWith(
+                        "videos/"
+                    )
+                ) {
+
+                    storagePath =
+                        content.type === "image"
+                            ? `images/${storagePath}`
+                            : `videos/${storagePath}`;
+
+                }
+
+                console.log(
+                    "Deleting storage file:",
+                    storagePath
+                );
+
+                const {
+                    error:
+                        storageError
+                } =
+                    await supabase.storage
+                        .from(
+                            BUCKET_NAME
+                        )
+                        .remove(
+                            [
+                                storagePath
+                            ]
+                        );
+
+                if (
+                    storageError
+                ) {
+
+                    console.error(
+                        "Storage delete error:",
+                        storageError
+                    );
+
+                }
+
+            }
+
+            // -------------------------------------------------
+            // DELETE DATABASE RECORD
+            // -------------------------------------------------
+
+            await pool.query(
+                `
+                DELETE FROM content
+                WHERE id = $1
+                `,
+                [id]
+            );
+
+            return res.json({
+
+                success: true,
+
+                message:
+                    "Content deleted successfully"
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Delete error:",
+                error
+            );
+
+            return res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Failed to delete content"
+
+            });
+
+        }
+
+    }
+);
+
+// =====================================================
+// HEALTH CHECK
+// =====================================================
+
+app.get(
+    "/api/health",
+    async (req, res) => {
+
+        try {
+
+            await pool.query(
+                "SELECT 1"
+            );
+
+            return res.json({
+
+                success: true,
+
+                message:
+                    "Server and database are working"
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Health check error:",
+                error
+            );
+
+            return res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Database connection failed"
+
+            });
+
+        }
+
+    }
+);
+
+// =====================================================
+// ERROR HANDLER
+// =====================================================
+
+app.use(
+    (error, req, res, next) => {
+
+        console.error(
+            "Server error:",
+            error
         );
 
-        // IMPORTANT:
-        // dashboard.js expects type, title and url directly
+        return res.status(500).json({
 
-    res.json({
-    success: true,
-    message: "File uploaded and saved successfully",
-    id: result.rows[0].id,
-    type: result.rows[0].type,
-    title: result.rows[0].title,
-    filename: result.rows[0].filename,
-    url: result.rows[0].url,
-    category: result.rows[0].category
-});
-
-    } catch (error) {
-
-        console.error("Upload error:", error);
-
-        res.status(500).json({
             success: false,
-            message: "Upload failed"
+
+            message:
+                error.message ||
+                "Something went wrong"
+
         });
+
     }
-});
+);
 
-// =========================
+// =====================================================
 // START SERVER
-// =========================
+// =====================================================
 
-app.listen(PORT, () => {
+app.listen(
+    PORT,
+    () => {
 
-    console.log(
-        `Annavaram Web running at http://localhost:${PORT}`
-    );
+        console.log(
+            `Annavaram Web running at http://localhost:${PORT}`
+        );
 
-});
+    }
+);

@@ -1,20 +1,10 @@
-// =====================================================
-// DASHBOARD ELEMENTS
-// =====================================================
-
 const uploadBtn = document.getElementById("uploadBtn");
 const contentFile = document.getElementById("contentFile");
 const contentTitle = document.getElementById("contentTitle");
 const contentType = document.getElementById("contentType");
 const contentCategory = document.getElementById("contentCategory");
 const uploadMessage = document.getElementById("uploadMessage");
-
-const videoContentList =
-    document.getElementById("videoContentList");
-
-const imageContentList =
-    document.getElementById("imageContentList");
-
+const contentList = document.getElementById("contentList");
 
 // =====================================================
 // UPLOAD CONTENT
@@ -27,95 +17,83 @@ uploadBtn.addEventListener("click", async () => {
     const type = contentType.value;
     const category = contentCategory.value;
 
-
-    // -------------------------
-    // VALIDATION
-    // -------------------------
-
     if (!file) {
-
-        uploadMessage.textContent =
-            "Please select a file.";
-
+        uploadMessage.textContent = "Please select a file.";
         return;
     }
-
 
     if (!title) {
-
-        uploadMessage.textContent =
-            "Please enter a title.";
-
+        uploadMessage.textContent = "Please enter a title.";
         return;
     }
 
-
-    // -------------------------
-    // FILE TYPE CHECK
-    // -------------------------
-
+    // Check selected file type
     if (
         type === "image" &&
         !file.type.startsWith("image/")
     ) {
-
         uploadMessage.textContent =
             "Please select an image file.";
-
         return;
     }
-
 
     if (
         type === "video" &&
         !file.type.startsWith("video/")
     ) {
-
         uploadMessage.textContent =
             "Please select a video file.";
-
         return;
     }
 
-
-    // -------------------------
-    // FORM DATA
-    // -------------------------
-
+    // Create form data
     const formData = new FormData();
 
-    formData.append("file", file);
-    formData.append("title", title);
-    formData.append("type", type);
-    formData.append("category", category);
+    formData.append(
+        "file",
+        file
+    );
 
+    formData.append(
+        "title",
+        title
+    );
+
+    formData.append(
+        "type",
+        type
+    );
+
+    formData.append(
+        "category",
+        category
+    );
 
     uploadMessage.textContent =
-        "Uploading...";
+        "Uploading... Please wait.";
 
     uploadBtn.disabled = true;
     uploadBtn.textContent =
         "Uploading...";
 
-
     try {
 
-        const response = await fetch(
-            "/api/upload",
-            {
-                method: "POST",
-                body: formData
-            }
-        );
+        const response =
+            await fetch(
+                "/api/upload",
+                {
+                    method: "POST",
+                    body: formData
+                }
+            );
 
-
-        const data = await response.json();
+        const data =
+            await response.json();
 
         console.log(
             "Upload response:",
             data
         );
-
 
         if (!response.ok) {
 
@@ -123,27 +101,18 @@ uploadBtn.addEventListener("click", async () => {
                 data.message ||
                 "Upload failed"
             );
-        }
 
+        }
 
         uploadMessage.textContent =
             "Upload successful!";
 
-
-        // -------------------------
-        // CLEAR FORM
-        // -------------------------
-
+        // Clear form
         contentTitle.value = "";
         contentFile.value = "";
 
-
-        // -------------------------
-        // RELOAD CONTENT
-        // -------------------------
-
+        // Reload content
         await loadContent();
-
 
     } catch (error) {
 
@@ -156,53 +125,88 @@ uploadBtn.addEventListener("click", async () => {
             error.message ||
             "Upload failed";
 
+    } finally {
+
+        uploadBtn.disabled = false;
+
+        uploadBtn.textContent =
+            "Upload Content";
+
     }
-
-
-    uploadBtn.disabled = false;
-
-    uploadBtn.textContent =
-        "Upload Content";
 
 });
 
+// =====================================================
+// ESCAPE HTML
+// =====================================================
+
+function escapeHtml(value) {
+
+    if (value === null ||
+        value === undefined) {
+
+        return "";
+
+    }
+
+    return String(value)
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
 
 // =====================================================
-// CATEGORY NAME
+// GET CATEGORY NAME
 // =====================================================
 
 function getCategoryName(category) {
 
-    if (category === "lyrical") {
-
+    if (
+        category === "lyrical"
+    ) {
         return "Lyrical Video";
-
     }
 
-    if (category === "reels") {
-
+    if (
+        category === "reels"
+    ) {
         return "Reels";
-
     }
 
     if (
         category === "wedding" ||
         category === "wedding-promos"
     ) {
-
         return "Wedding Promo";
-
     }
 
-    if (category === "images") {
-
+    if (
+        category === "images"
+    ) {
         return "Images";
-
     }
 
     return "Latest Works";
-}
 
+}
 
 // =====================================================
 // ADD CONTENT TO DASHBOARD
@@ -210,175 +214,163 @@ function getCategoryName(category) {
 
 function addContentToDashboard(data) {
 
-    if (!data) {
-        return;
+    const emptyContent =
+        document.querySelector(
+            ".empty-content"
+        );
+
+    if (emptyContent) {
+        emptyContent.remove();
     }
 
-
-    // =================================================
-    // CREATE CONTENT ITEM
-    // =================================================
-
     const item =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
     item.className =
         "content-item";
 
+    const safeTitle =
+        escapeHtml(
+            data.title
+        );
+
+    const safeUrl =
+        escapeHtml(
+            data.url
+        );
 
     // =================================================
     // IMAGE
     // =================================================
 
-    if (data.type === "image") {
+    if (
+        data.type === "image"
+    ) {
 
-        const image =
-            document.createElement("img");
+        item.innerHTML = `
 
-        image.src = data.url;
+            <img
+                src="${safeUrl}"
+                alt="${safeTitle}"
+                loading="lazy"
+                onerror="this.style.display='none';"
+            >
 
-        image.alt =
-            data.title || "Image";
+            <h3>
+                ${safeTitle}
+            </h3>
 
-        image.loading = "lazy";
-
-
-        // IMAGE TITLE
-
-        const title =
-            document.createElement("h3");
-
-        title.textContent =
-            data.title || "Untitled";
-
-
-        // CATEGORY
-
-        const categoryText =
-            document.createElement("p");
-
-        categoryText.className =
-            "content-category";
-
-        categoryText.textContent =
-            "Category: " +
-            getCategoryName(data.category);
-
-
-        item.appendChild(image);
-
-        item.appendChild(title);
-
-        item.appendChild(categoryText);
+        `;
 
     }
-
 
     // =================================================
     // VIDEO
     // =================================================
 
-    else if (data.type === "video") {
+    else if (
+        data.type === "video"
+    ) {
 
-        const video =
-            document.createElement("video");
+        item.innerHTML = `
 
-        video.controls = true;
+            <video
+                controls
+                preload="metadata"
+                playsinline
+            >
 
-        video.preload = "metadata";
+                <source
+                    src="${safeUrl}"
+                >
 
+                Your browser does not
+                support video playback.
 
-        const source =
-            document.createElement("source");
+            </video>
 
-        source.src =
-            data.url;
+            <h3>
+                ${safeTitle}
+            </h3>
 
-        source.type =
-            "video/mp4";
-
-
-        video.appendChild(source);
-
-
-        // VIDEO TITLE
-
-        const title =
-            document.createElement("h3");
-
-        title.textContent =
-            data.title || "Untitled";
-
-
-        // CATEGORY
-
-        const categoryText =
-            document.createElement("p");
-
-        categoryText.className =
-            "content-category";
-
-        categoryText.textContent =
-            "Category: " +
-            getCategoryName(data.category);
-
-
-        item.appendChild(video);
-
-        item.appendChild(title);
-
-        item.appendChild(categoryText);
+        `;
 
     }
 
+    // =================================================
+    // CATEGORY
+    // =================================================
+
+    const categoryText =
+        document.createElement(
+            "p"
+        );
+
+    categoryText.className =
+        "content-category";
+
+    categoryText.textContent =
+        "Category: " +
+        getCategoryName(
+            data.category
+        );
+
+    item.appendChild(
+        categoryText
+    );
 
     // =================================================
     // ACTION BUTTONS
     // =================================================
 
     const buttons =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
     buttons.className =
         "content-actions";
 
+    buttons.innerHTML = `
 
-    // EDIT BUTTON
+        <button
+            class="edit-btn"
+            type="button"
+        >
+            ✏️
+            <span>
+                Edit Title
+            </span>
+        </button>
 
-    const editButton =
-        document.createElement("button");
+        <button
+            class="delete-btn"
+            type="button"
+        >
+            🗑️
+            <span>
+                Delete
+            </span>
+        </button>
 
-    editButton.className =
-        "edit-btn";
+    `;
 
-    editButton.innerHTML =
-        "✏️ <span>Edit Title</span>";
-
-
-    // DELETE BUTTON
-
-    const deleteButton =
-        document.createElement("button");
-
-    deleteButton.className =
-        "delete-btn";
-
-    deleteButton.innerHTML =
-        "🗑️ <span>Delete</span>";
-
-
-    buttons.appendChild(editButton);
-
-    buttons.appendChild(deleteButton);
-
-    item.appendChild(buttons);
-
+    item.appendChild(
+        buttons
+    );
 
     // =================================================
     // EDIT TITLE
     // =================================================
 
-    editButton.addEventListener(
+    const editBtn =
+        buttons.querySelector(
+            ".edit-btn"
+        );
+
+    editBtn.addEventListener(
         "click",
         async () => {
 
@@ -388,15 +380,12 @@ function addContentToDashboard(data) {
                     data.title
                 );
 
-
             if (
                 newTitle === null ||
                 !newTitle.trim()
             ) {
-
                 return;
             }
-
 
             try {
 
@@ -419,27 +408,25 @@ function addContentToDashboard(data) {
                         }
                     );
 
-
                 const result =
                     await response.json();
 
-
-                if (!response.ok) {
+                if (
+                    !response.ok
+                ) {
 
                     throw new Error(
                         result.message ||
                         "Update failed"
                     );
-                }
 
+                }
 
                 alert(
                     "Title updated successfully!"
                 );
 
-
                 await loadContent();
-
 
             } catch (error) {
 
@@ -447,7 +434,6 @@ function addContentToDashboard(data) {
                     "Edit error:",
                     error
                 );
-
 
                 alert(
                     error.message ||
@@ -459,12 +445,16 @@ function addContentToDashboard(data) {
         }
     );
 
-
     // =================================================
-    // DELETE CONTENT
+    // DELETE
     // =================================================
 
-    deleteButton.addEventListener(
+    const deleteBtn =
+        buttons.querySelector(
+            ".delete-btn"
+        );
+
+    deleteBtn.addEventListener(
         "click",
         async () => {
 
@@ -473,12 +463,9 @@ function addContentToDashboard(data) {
                     `Are you sure you want to delete "${data.title}"?`
                 );
 
-
             if (!confirmDelete) {
-
                 return;
             }
-
 
             try {
 
@@ -486,31 +473,30 @@ function addContentToDashboard(data) {
                     await fetch(
                         `/api/content/${data.id}`,
                         {
-                            method: "DELETE"
+                            method:
+                                "DELETE"
                         }
                     );
-
 
                 const result =
                     await response.json();
 
-
-                if (!response.ok) {
+                if (
+                    !response.ok
+                ) {
 
                     throw new Error(
                         result.message ||
                         "Delete failed"
                     );
-                }
 
+                }
 
                 alert(
                     "Content deleted successfully!"
                 );
 
-
                 await loadContent();
-
 
             } catch (error) {
 
@@ -518,7 +504,6 @@ function addContentToDashboard(data) {
                     "Delete error:",
                     error
                 );
-
 
                 alert(
                     error.message ||
@@ -530,65 +515,11 @@ function addContentToDashboard(data) {
         }
     );
 
-
-    // =================================================
-    // PUT ITEM IN CORRECT COLUMN
-    // =================================================
-
-    if (data.type === "video") {
-
-        videoContentList.appendChild(item);
-
-    }
-
-    else if (data.type === "image") {
-
-        imageContentList.appendChild(item);
-
-    }
+    contentList.appendChild(
+        item
+    );
 
 }
-
-
-// =====================================================
-// EMPTY MESSAGE
-// =====================================================
-
-function showEmptyMessages() {
-
-    // -------------------------
-    // VIDEOS
-    // -------------------------
-
-    if (
-        videoContentList.children.length === 0
-    ) {
-
-        videoContentList.innerHTML = `
-            <div class="empty-content">
-                No videos uploaded yet.
-            </div>
-        `;
-    }
-
-
-    // -------------------------
-    // IMAGES
-    // -------------------------
-
-    if (
-        imageContentList.children.length === 0
-    ) {
-
-        imageContentList.innerHTML = `
-            <div class="empty-content">
-                No images uploaded yet.
-            </div>
-        `;
-    }
-
-}
-
 
 // =====================================================
 // LOAD ALL CONTENT
@@ -600,26 +531,33 @@ async function loadContent() {
 
         const response =
             await fetch(
-                "/api/content"
+                "/api/content",
+                {
+                    method: "GET",
+                    cache: "no-store"
+                }
             );
-
 
         const result =
             await response.json();
 
-
-        if (!response.ok) {
+        if (
+            !response.ok
+        ) {
 
             throw new Error(
                 result.message ||
                 "Failed to load content"
             );
+
         }
 
-
         const content =
-            result.data || [];
-
+            Array.isArray(
+                result.data
+            )
+                ? result.data
+                : [];
 
         // =================================================
         // COUNTS
@@ -640,13 +578,11 @@ async function loadContent() {
                 "totalCount"
             );
 
-
         const images =
             content.filter(
                 item =>
                     item.type === "image"
             );
-
 
         const videos =
             content.filter(
@@ -654,40 +590,50 @@ async function loadContent() {
                     item.type === "video"
             );
 
+        if (imageCount) {
+            imageCount.textContent =
+                images.length;
+        }
 
-        imageCount.textContent =
-            images.length;
+        if (videoCount) {
+            videoCount.textContent =
+                videos.length;
+        }
 
-        videoCount.textContent =
-            videos.length;
-
-        totalCount.textContent =
-            content.length;
-
-
-        // =================================================
-        // CLEAR BOTH COLUMNS
-        // =================================================
-
-        videoContentList.innerHTML = "";
-
-        imageContentList.innerHTML = "";
-
+        if (totalCount) {
+            totalCount.textContent =
+                content.length;
+        }
 
         // =================================================
-        // NO CONTENT
+        // CLEAR LIST
         // =================================================
 
-        if (content.length === 0) {
+        contentList.innerHTML = "";
 
-            showEmptyMessages();
+        // =================================================
+        // EMPTY
+        // =================================================
+
+        if (
+            content.length === 0
+        ) {
+
+            contentList.innerHTML = `
+
+                <div class="empty-content">
+
+                    No content uploaded yet.
+
+                </div>
+
+            `;
 
             return;
         }
 
-
         // =================================================
-        // ADD CONTENT
+        // SHOW CONTENT
         // =================================================
 
         content.forEach(
@@ -700,14 +646,6 @@ async function loadContent() {
             }
         );
 
-
-        // =================================================
-        // SHOW EMPTY MESSAGE FOR INDIVIDUAL COLUMN
-        // =================================================
-
-        showEmptyMessages();
-
-
     } catch (error) {
 
         console.error(
@@ -715,10 +653,19 @@ async function loadContent() {
             error
         );
 
+        contentList.innerHTML = `
+
+            <div class="empty-content">
+
+                Failed to load content.
+
+            </div>
+
+        `;
+
     }
 
 }
-
 
 // =====================================================
 // INITIAL LOAD
