@@ -14,40 +14,32 @@ const PORT = process.env.PORT || 3000;
 // ENVIRONMENT VARIABLES
 // =====================================================
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "").trim();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_URL = (process.env.SUPABASE_URL || "").trim();
 const SUPABASE_SERVICE_ROLE_KEY =
-    process.env.SUPABASE_SERVICE_ROLE_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
 const BUCKET_NAME = "media";
 
 // =====================================================
-// CHECK REQUIRED ENV VARIABLES
+// SUPABASE
 // =====================================================
 
-if (!SUPABASE_URL) {
-    console.error("ERROR: SUPABASE_URL is missing");
-}
+let supabase = null;
 
-if (!SUPABASE_SERVICE_ROLE_KEY) {
-    console.error(
-        "ERROR: SUPABASE_SERVICE_ROLE_KEY is missing"
+if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    supabase = createClient(
+        SUPABASE_URL,
+        SUPABASE_SERVICE_ROLE_KEY
     );
+} else {
+    console.error("Supabase environment variables are missing.");
 }
 
 // =====================================================
-// SUPABASE CLIENT
-// =====================================================
-
-const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_SERVICE_ROLE_KEY
-);
-
-// =====================================================
-// POSTGRES DATABASE
+// POSTGRES
 // =====================================================
 
 const pool = new Pool({
@@ -65,7 +57,7 @@ const pool = new Pool({
         process.env.DB_PASSWORD,
 
     port:
-        process.env.DB_PORT ||
+        Number(process.env.DB_PORT) ||
         5432,
 
     ssl:
@@ -77,7 +69,7 @@ const pool = new Pool({
 });
 
 // =====================================================
-// EXPRESS MIDDLEWARE
+// MIDDLEWARE
 // =====================================================
 
 app.use(express.json());
@@ -89,64 +81,45 @@ app.use(
 );
 
 // =====================================================
-// STATIC PUBLIC FILES
+// STATIC FILES
 // =====================================================
 
 app.use(
     express.static(
-        path.join(
-            __dirname,
-            "public"
-        )
+        path.join(__dirname, "public")
     )
 );
 
 // =====================================================
 // MULTER
-// STORE FILE IN MEMORY
 // =====================================================
 
 const upload = multer({
-
-    storage:
-        multer.memoryStorage(),
+    storage: multer.memoryStorage(),
 
     limits: {
-
-        fileSize:
-            1024 * 1024 * 1024
+        fileSize: 1024 * 1024 * 1024
     },
 
-    fileFilter:
-        (req, file, cb) => {
+    fileFilter: (req, file, cb) => {
 
-            if (
-                file.mimetype.startsWith(
-                    "image/"
-                ) ||
-                file.mimetype.startsWith(
-                    "video/"
+        if (
+            file.mimetype.startsWith("image/") ||
+            file.mimetype.startsWith("video/")
+        ) {
+            cb(null, true);
+        } else {
+            cb(
+                new Error(
+                    "Only image and video files are allowed"
                 )
-            ) {
-
-                cb(null, true);
-
-            } else {
-
-                cb(
-                    new Error(
-                        "Only image and video files are allowed"
-                    )
-                );
-
-            }
-
+            );
         }
-
+    }
 });
 
 // =====================================================
-// ADMIN LOGIN
+// ADMIN LOGIN - POST
 // =====================================================
 
 app.post(
@@ -155,50 +128,53 @@ app.post(
 
         try {
 
-            const {
-                email,
-                password
-            } = req.body;
+            const email =
+                String(
+                    req.body.email || ""
+                ).trim();
 
-            if (
-                !email ||
-                !password
-            ) {
+            const password =
+                String(
+                    req.body.password || ""
+                );
+
+            if (!email || !password) {
 
                 return res.status(400).json({
-
                     success: false,
-
                     message:
                         "Email and password are required"
-
                 });
-
             }
 
+            const emailMatches =
+                email.toLowerCase() ===
+                ADMIN_EMAIL.toLowerCase();
+
+            const passwordMatches =
+                password === ADMIN_PASSWORD;
+
             if (
-                email === ADMIN_EMAIL &&
-                password === ADMIN_PASSWORD
+                emailMatches &&
+                passwordMatches
             ) {
 
                 return res.json({
-
                     success: true,
-
                     message:
                         "Login successful"
-
                 });
-
             }
 
+            console.log(
+                "Admin login failed for:",
+                email
+            );
+
             return res.status(401).json({
-
                 success: false,
-
                 message:
                     "Invalid email or password"
-
             });
 
         } catch (error) {
@@ -209,21 +185,32 @@ app.post(
             );
 
             return res.status(500).json({
-
                 success: false,
-
                 message:
                     "Login failed"
-
             });
-
         }
-
     }
 );
 
 // =====================================================
-// HOME PAGE
+// ADMIN LOGIN - GET
+// =====================================================
+
+app.get(
+    "/api/login",
+    (req, res) => {
+
+        res.status(405).json({
+            success: false,
+            message:
+                "Login API is working. Use POST method to login."
+        });
+    }
+);
+
+// =====================================================
+// HOME
 // =====================================================
 
 app.get(
@@ -237,7 +224,6 @@ app.get(
                 "index.html"
             )
         );
-
     }
 );
 
@@ -267,12 +253,8 @@ app.get(
                 );
 
             return res.json({
-
                 success: true,
-
-                data:
-                    result.rows
-
+                data: result.rows
             });
 
         } catch (error) {
@@ -283,21 +265,16 @@ app.get(
             );
 
             return res.status(500).json({
-
                 success: false,
-
                 message:
                     "Failed to load content"
-
             });
-
         }
-
     }
 );
 
 // =====================================================
-// UPLOAD IMAGE / VIDEO
+// UPLOAD CONTENT
 // =====================================================
 
 app.post(
@@ -307,26 +284,23 @@ app.post(
 
         try {
 
-            // -------------------------------------------------
-            // CHECK FILE
-            // -------------------------------------------------
-
             if (!req.file) {
 
                 return res.status(400).json({
-
                     success: false,
-
                     message:
                         "Please select a file"
-
                 });
-
             }
 
-            // -------------------------------------------------
-            // DETERMINE TYPE
-            // -------------------------------------------------
+            if (!supabase) {
+
+                return res.status(500).json({
+                    success: false,
+                    message:
+                        "Supabase is not configured"
+                });
+            }
 
             const type =
                 req.file.mimetype.startsWith(
@@ -335,34 +309,18 @@ app.post(
                     ? "image"
                     : "video";
 
-            // -------------------------------------------------
-            // TITLE
-            // -------------------------------------------------
-
             const title =
                 req.body.title ||
                 req.file.originalname;
-
-            // -------------------------------------------------
-            // CATEGORY
-            // -------------------------------------------------
 
             const category =
                 req.body.category ||
                 "latest";
 
-            // -------------------------------------------------
-            // FILE EXTENSION
-            // -------------------------------------------------
-
             const extension =
                 path.extname(
                     req.file.originalname
                 );
-
-            // -------------------------------------------------
-            // SAFE FILE NAME
-            // -------------------------------------------------
 
             const originalName =
                 path.basename(
@@ -381,16 +339,8 @@ app.post(
                         "-"
                     );
 
-            // -------------------------------------------------
-            // UNIQUE FILE NAME
-            // -------------------------------------------------
-
             const fileName =
                 `${Date.now()}-${safeName}${extension}`;
-
-            // -------------------------------------------------
-            // STORAGE FOLDER
-            // -------------------------------------------------
 
             const folder =
                 type === "image"
@@ -405,18 +355,11 @@ app.post(
                 storagePath
             );
 
-            // -------------------------------------------------
-            // SUPABASE STORAGE UPLOAD
-            // -------------------------------------------------
-
             const {
-                error:
-                    uploadError
+                error: uploadError
             } =
                 await supabase.storage
-                    .from(
-                        BUCKET_NAME
-                    )
+                    .from(BUCKET_NAME)
                     .upload(
                         storagePath,
                         req.file.buffer,
@@ -440,46 +383,25 @@ app.post(
                 );
 
                 return res.status(500).json({
-
                     success: false,
-
                     message:
                         "Failed to upload file to Supabase Storage",
-
                     error:
                         uploadError.message
-
                 });
-
             }
 
-            // -------------------------------------------------
-            // GET PUBLIC URL
-            // -------------------------------------------------
-
             const {
-                data:
-                    publicUrlData
+                data: publicUrlData
             } =
                 supabase.storage
-                    .from(
-                        BUCKET_NAME
-                    )
+                    .from(BUCKET_NAME)
                     .getPublicUrl(
                         storagePath
                     );
 
             const publicUrl =
                 publicUrlData.publicUrl;
-
-            console.log(
-                "Public URL:",
-                publicUrl
-            );
-
-            // -------------------------------------------------
-            // SAVE CONTENT IN DATABASE
-            // -------------------------------------------------
 
             const result =
                 await pool.query(
@@ -493,13 +415,7 @@ app.post(
                         category
                     )
                     VALUES
-                    (
-                        $1,
-                        $2,
-                        $3,
-                        $4,
-                        $5
-                    )
+                    ($1, $2, $3, $4, $5)
                     RETURNING *
                     `,
                     [
@@ -514,12 +430,7 @@ app.post(
             const content =
                 result.rows[0];
 
-            // -------------------------------------------------
-            // RESPONSE
-            // -------------------------------------------------
-
             return res.json({
-
                 success: true,
 
                 message:
@@ -542,7 +453,6 @@ app.post(
 
                 category:
                     content.category
-
             });
 
         } catch (error) {
@@ -553,19 +463,13 @@ app.post(
             );
 
             return res.status(500).json({
-
                 success: false,
-
                 message:
                     "Upload failed",
-
                 error:
                     error.message
-
             });
-
         }
-
     }
 );
 
@@ -579,28 +483,21 @@ app.put(
 
         try {
 
-            const {
-                id
-            } = req.params;
+            const id =
+                req.params.id;
 
-            const {
-                title
-            } = req.body;
+            const title =
+                String(
+                    req.body.title || ""
+                ).trim();
 
-            if (
-                !title ||
-                !title.trim()
-            ) {
+            if (!title) {
 
                 return res.status(400).json({
-
                     success: false,
-
                     message:
                         "Title is required"
-
                 });
-
             }
 
             const result =
@@ -612,7 +509,7 @@ app.put(
                     RETURNING *
                     `,
                     [
-                        title.trim(),
+                        title,
                         id
                     ]
                 );
@@ -622,26 +519,18 @@ app.put(
             ) {
 
                 return res.status(404).json({
-
                     success: false,
-
                     message:
                         "Content not found"
-
                 });
-
             }
 
             return res.json({
-
                 success: true,
-
                 message:
                     "Content updated successfully",
-
                 data:
                     result.rows[0]
-
             });
 
         } catch (error) {
@@ -652,16 +541,11 @@ app.put(
             );
 
             return res.status(500).json({
-
                 success: false,
-
                 message:
                     "Failed to update content"
-
             });
-
         }
-
     }
 );
 
@@ -675,13 +559,8 @@ app.delete(
 
         try {
 
-            const {
-                id
-            } = req.params;
-
-            // -------------------------------------------------
-            // GET CONTENT
-            // -------------------------------------------------
+            const id =
+                req.params.id;
 
             const result =
                 await pool.query(
@@ -698,38 +577,22 @@ app.delete(
             ) {
 
                 return res.status(404).json({
-
                     success: false,
-
                     message:
                         "Content not found"
-
                 });
-
             }
 
             const content =
                 result.rows[0];
 
-            // -------------------------------------------------
-            // DELETE FROM SUPABASE STORAGE
-            // -------------------------------------------------
-
             if (
+                supabase &&
                 content.filename
             ) {
 
                 let storagePath =
                     content.filename;
-
-                /*
-                 * New records contain:
-                 * images/file.jpg
-                 * videos/file.mp4
-                 *
-                 * Old records may contain:
-                 * /uploads/images/file.jpg
-                 */
 
                 if (
                     storagePath.startsWith(
@@ -742,7 +605,6 @@ app.delete(
                             "/uploads/",
                             ""
                         );
-
                 }
 
                 if (
@@ -758,7 +620,6 @@ app.delete(
                         content.type === "image"
                             ? `images/${storagePath}`
                             : `videos/${storagePath}`;
-
                 }
 
                 console.log(
@@ -767,35 +628,22 @@ app.delete(
                 );
 
                 const {
-                    error:
-                        storageError
+                    error: storageError
                 } =
                     await supabase.storage
-                        .from(
-                            BUCKET_NAME
-                        )
-                        .remove(
-                            [
-                                storagePath
-                            ]
-                        );
+                        .from(BUCKET_NAME)
+                        .remove([
+                            storagePath
+                        ]);
 
-                if (
-                    storageError
-                ) {
+                if (storageError) {
 
                     console.error(
                         "Storage delete error:",
                         storageError
                     );
-
                 }
-
             }
-
-            // -------------------------------------------------
-            // DELETE DATABASE RECORD
-            // -------------------------------------------------
 
             await pool.query(
                 `
@@ -806,12 +654,9 @@ app.delete(
             );
 
             return res.json({
-
                 success: true,
-
                 message:
                     "Content deleted successfully"
-
             });
 
         } catch (error) {
@@ -822,16 +667,11 @@ app.delete(
             );
 
             return res.status(500).json({
-
                 success: false,
-
                 message:
                     "Failed to delete content"
-
             });
-
         }
-
     }
 );
 
@@ -850,12 +690,9 @@ app.get(
             );
 
             return res.json({
-
                 success: true,
-
                 message:
                     "Server and database are working"
-
             });
 
         } catch (error) {
@@ -866,16 +703,11 @@ app.get(
             );
 
             return res.status(500).json({
-
                 success: false,
-
                 message:
                     "Database connection failed"
-
             });
-
         }
-
     }
 );
 
@@ -892,29 +724,36 @@ app.use(
         );
 
         return res.status(500).json({
-
             success: false,
-
             message:
                 error.message ||
                 "Something went wrong"
-
         });
-
     }
 );
 
 // =====================================================
-// START SERVER
+// VERCEL
 // =====================================================
 
-app.listen(
-    PORT,
-    () => {
+module.exports = app;
 
-        console.log(
-            `Annavaram Web running at http://localhost:${PORT}`
-        );
+// =====================================================
+// LOCAL SERVER
+// =====================================================
 
-    }
-);
+if (
+    require.main === module
+) {
+
+    app.listen(
+        PORT,
+        () => {
+
+            console.log(
+                `Annavaram Web running at http://localhost:${PORT}`
+            );
+
+        }
+    );
+}

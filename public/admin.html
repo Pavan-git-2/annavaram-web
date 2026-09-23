@@ -2,7 +2,6 @@
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
 
     <meta
@@ -10,15 +9,12 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>
-        Admin Login - Annavaram Web
-    </title>
+    <title>Admin Login - Annavaram Web</title>
 
     <link
         rel="stylesheet"
         href="style.css"
     >
-
 </head>
 
 <body>
@@ -93,23 +89,16 @@
 
     </div>
 
-
     <script>
 
         const loginForm =
-            document.getElementById(
-                "loginForm"
-            );
+            document.getElementById("loginForm");
 
         const loginBtn =
-            document.getElementById(
-                "loginBtn"
-            );
+            document.getElementById("loginBtn");
 
         const loginMessage =
-            document.getElementById(
-                "loginMessage"
-            );
+            document.getElementById("loginMessage");
 
 
         loginForm.addEventListener(
@@ -119,77 +108,49 @@
                 event.preventDefault();
 
                 const email =
-                    document.getElementById(
-                        "email"
-                    ).value.trim();
+                    document.getElementById("email").value.trim();
 
                 const password =
-                    document.getElementById(
-                        "password"
-                    ).value;
+                    document.getElementById("password").value;
 
+                loginMessage.textContent = "";
 
-                loginMessage.textContent =
-                    "";
-
-                loginBtn.disabled =
-                    true;
-
-                loginBtn.textContent =
-                    "Logging in...";
+                loginBtn.disabled = true;
+                loginBtn.textContent = "Logging in...";
 
 
                 try {
 
                     const response =
-                        await fetch(
-                            "/api/login",
-                            {
-                                method: "POST",
+                        await fetch("/api/login", {
+                            method: "POST",
 
-                                headers: {
-                                    "Content-Type":
-                                        "application/json"
-                                },
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
 
-                                body:
-                                    JSON.stringify({
-                                        email:
-                                            email,
-
-                                        password:
-                                            password
-                                    })
-                            }
-                        );
+                            body: JSON.stringify({
+                                email: email,
+                                password: password
+                            })
+                        });
 
 
                     const data =
                         await response.json();
 
 
-                    if (
-                        response.ok &&
-                        data.success
-                    ) {
-
-                        /*
-                         * Save login state in browser.
-                         * This will allow dashboard.html
-                         * to know that admin has logged in.
-                         */
+                    if (response.ok && data.success) {
 
                         sessionStorage.setItem(
                             "adminLoggedIn",
                             "true"
                         );
 
-
                         sessionStorage.setItem(
                             "adminEmail",
                             email
                         );
-
 
                         window.location.href =
                             "/dashboard.html";
@@ -215,11 +176,8 @@
 
                 } finally {
 
-                    loginBtn.disabled =
-                        false;
-
-                    loginBtn.textContent =
-                        "Login";
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = "Login";
 
                 }
 
